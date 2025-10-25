@@ -45,9 +45,15 @@ function App() {
     try {
       const profile = await initializeApp(username, displayName);
       setUserProfile(profile);
+      
+      console.log("Profile initialized:", profile);
+
+      // Wait a moment for services to start
+      await new Promise(resolve => setTimeout(resolve, 1000));
 
       // Load initial data
       const peers = await getPeers();
+      console.log("Initial peers loaded:", peers);
       peers.forEach((peer) => addPeer(peer));
 
       const messages = await getMessages();

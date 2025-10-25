@@ -37,6 +37,8 @@ impl AppState {
     }
 
     pub async fn start_services(&self) -> anyhow::Result<()> {
+        tracing::info!("Starting chat services...");
+        
         // Generate keypair
         let keypair = KeyPair::generate()?;
         let public_key = keypair.export_public_key_bytes()?;
@@ -50,10 +52,14 @@ impl AppState {
             .clone()
             .unwrap_or_else(|| UserProfile::new("user".into(), "User".into()));
 
+        tracing::info!("User profile: {} ({})", profile.display_name, profile.user_id);
+
         // Get local IP
         let local_ip = get_local_ip().unwrap_or_else(|| "127.0.0.1".parse().unwrap());
+        tracing::info!("Local IP: {}", local_ip);
 
         // Start discovery service
+        tracing::info!("Starting peer discovery service...");
         let discovery = Arc::new(
             DiscoveryService::new(
                 profile.clone(),
@@ -66,11 +72,12 @@ impl AppState {
 
         tokio::spawn(async move {
             if let Err(e) = discovery.start().await {
-                eprintln!("Discovery service error: {}", e);
+                tracing::error!("Discovery service error: {}", e);
             }
         });
 
         // Start messaging server
+        tracing::info!("Starting messaging server on port {}...", lan_chat_protocol::MESSAGING_PORT);
         let messaging = Arc::new(MessagingServer::new(
             profile.clone(),
             keypair,
@@ -80,12 +87,13 @@ impl AppState {
 
         tokio::spawn(async move {
             if let Err(e) = messaging.start().await {
-                eprintln!("Messaging server error: {}", e);
+                tracing::error!("Messaging server error: {}", e);
             }
         });
 
         // Start transfer service
         let download_dir = dirs::download_dir().unwrap_or_else(|| PathBuf::from("."));
+        tracing::info!("Starting file transfer service (downloads: {:?})...", download_dir);
         let transfer = Arc::new(TransferService::new(
             profile.user_id,
             self.peer_registry.clone(),
@@ -95,10 +103,11 @@ impl AppState {
 
         tokio::spawn(async move {
             if let Err(e) = transfer.start().await {
-                eprintln!("Transfer service error: {}", e);
+                tracing::error!("Transfer service error: {}", e);
             }
         });
 
+        tracing::info!("All services started successfully!");
         Ok(())
     }
 
