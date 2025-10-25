@@ -1,6 +1,6 @@
 use crate::{CryptoError, Result};
 use aes_gcm::{
-    aead::{Aead, KeyInit, OsRng},
+    aead::{Aead, KeyInit},
     Aes256Gcm, Key, Nonce,
 };
 use rand::RngCore;
@@ -49,17 +49,17 @@ impl AesEncryption {
 
     /// Encrypt data using AES-256-GCM
     pub fn encrypt(&self, plaintext: &[u8]) -> Result<EncryptedData> {
-        let key = Key::<Aes256Gcm>::from_slice(&self.key);
-        let cipher = Aes256Gcm::new(key);
+        let key = Key::<Aes256Gcm>::from(self.key);
+        let cipher = Aes256Gcm::new(&key);
 
         // Generate random nonce
         let mut nonce_bytes = [0u8; NONCE_SIZE];
         rand::thread_rng().fill_bytes(&mut nonce_bytes);
-        let nonce = Nonce::from_slice(&nonce_bytes);
+        let nonce = Nonce::from(nonce_bytes);
 
         // Encrypt
         let ciphertext = cipher
-            .encrypt(nonce, plaintext)
+            .encrypt(&nonce, plaintext)
             .map_err(|e| CryptoError::EncryptionFailed(e.to_string()))?;
 
         Ok(EncryptedData {
@@ -70,17 +70,19 @@ impl AesEncryption {
 
     /// Decrypt data using AES-256-GCM
     pub fn decrypt(&self, encrypted: &EncryptedData) -> Result<Vec<u8>> {
-        let key = Key::<Aes256Gcm>::from_slice(&self.key);
-        let cipher = Aes256Gcm::new(key);
+        let key = Key::<Aes256Gcm>::from(self.key);
+        let cipher = Aes256Gcm::new(&key);
 
         if encrypted.nonce.len() != NONCE_SIZE {
             return Err(CryptoError::DecryptionFailed("Invalid nonce size".into()));
         }
 
-        let nonce = Nonce::from_slice(&encrypted.nonce);
+        let mut nonce_array = [0u8; NONCE_SIZE];
+        nonce_array.copy_from_slice(&encrypted.nonce);
+        let nonce = Nonce::from(nonce_array);
 
         cipher
-            .decrypt(nonce, encrypted.ciphertext.as_ref())
+            .decrypt(&nonce, encrypted.ciphertext.as_ref())
             .map_err(|e| CryptoError::DecryptionFailed(e.to_string()))
     }
 }

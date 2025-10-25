@@ -345,13 +345,13 @@ impl TransferService {
         mut stream: TcpStream,
         transfer_id: TransferId,
     ) -> lan_chat_core::Result<()> {
-        let (file_name, file_size) = {
+        let file_name = {
             let transfers = self.transfers.read().await;
             let transfer = transfers.get(&transfer_id).ok_or_else(|| {
                 lan_chat_core::ChatError::FileTransfer("Transfer not found".into())
             })?;
 
-            (transfer.file_name.clone(), transfer.file_size)
+            transfer.file_name.clone()
         };
 
         // Create file
