@@ -94,7 +94,7 @@ pub async fn send_file(
     _state: State<'_, Arc<AppState>>,
     request: SendFileRequest,
 ) -> Result<String, String> {
-    let recipient_id = Uuid::parse_str(&request.recipient_id)
+    let _recipient_id = Uuid::parse_str(&request.recipient_id)
         .map_err(|e| format!("Invalid recipient ID: {}", e))?;
 
     // TODO: Implement via transfer service

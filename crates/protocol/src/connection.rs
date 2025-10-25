@@ -2,7 +2,6 @@ use crate::messages::{MessageFrame, ProtocolMessage};
 use lan_chat_core::{ChatError, Result, UserId};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpStream;
-use tracing::{debug, error};
 
 /// A connection to a peer
 pub struct PeerConnection {

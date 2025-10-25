@@ -1,5 +1,5 @@
 use crate::protocol::{DiscoveryMessage, DISCOVERY_PORT, MULTICAST_ADDR_V4};
-use lan_chat_core::{ChatEvent, NetworkAddress, Peer, PeerRegistry, UserProfile, UserStatus};
+use lan_chat_core::{ChatEvent, NetworkAddress, Peer, PeerRegistry, UserProfile};
 use socket2::{Domain, Protocol, Socket, Type};
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use std::sync::Arc;
@@ -95,11 +95,6 @@ impl DiscoveryService {
 
         socket
             .set_reuse_address(true)
-            .map_err(|e| lan_chat_core::ChatError::Network(e.to_string()))?;
-
-        #[cfg(not(windows))]
-        socket
-            .set_reuse_port(true)
             .map_err(|e| lan_chat_core::ChatError::Network(e.to_string()))?;
 
         let addr = SocketAddr::new(IpAddr::V4(Ipv4Addr::UNSPECIFIED), DISCOVERY_PORT);
@@ -208,7 +203,7 @@ impl DiscoveryService {
 
                 self.peer_registry.update_peer_status(&user_id, status).await;
 
-                if let Some(peer) = self.peer_registry.get_peer(&user_id).await {
+                if let Some(_peer) = self.peer_registry.get_peer(&user_id).await {
                     let _ = self.event_tx.send(ChatEvent::PeerStatusChanged { user_id, status });
                 }
             }
