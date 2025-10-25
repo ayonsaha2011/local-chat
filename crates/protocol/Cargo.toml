@@ -1,0 +1,21 @@
+[package]
+name = "lan-chat-protocol"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+
+[dependencies]
+lan-chat-core.workspace = true
+lan-chat-crypto.workspace = true
+
+tokio.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+anyhow.workspace = true
+thiserror.workspace = true
+tracing.workspace = true
+async-trait.workspace = true
+bytes.workspace = true
+uuid.workspace = true
+chrono.workspace = true
