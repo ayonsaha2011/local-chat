@@ -140,12 +140,15 @@ impl DiscoveryService {
     async fn receive_loop(&self, socket: Arc<Socket>) {
         let mut buffer = vec![0u8; BUFFER_SIZE];
 
+        info!("Discovery receiver loop started, listening on multicast {}:{}", MULTICAST_ADDR_V4, DISCOVERY_PORT);
+
         loop {
             let std_socket: std::net::UdpSocket = socket.try_clone().unwrap().into();
             let tokio_socket = tokio::net::UdpSocket::from_std(std_socket).unwrap();
 
             match tokio_socket.recv_from(&mut buffer).await {
                 Ok((len, addr)) => {
+                    debug!("Received {} bytes from {}", len, addr);
                     if let Err(e) = self.handle_message(&buffer[..len], addr).await {
                         debug!("Error handling message from {}: {}", addr, e);
                     }
@@ -171,10 +174,11 @@ impl DiscoveryService {
             } => {
                 // Ignore our own announcements
                 if profile.user_id == self.profile.user_id {
+                    debug!("Ignoring our own announcement");
                     return Ok(());
                 }
 
-                debug!("Peer announced: {}", profile.display_name);
+                info!("✅ Peer discovered: {} at {} (from {})", profile.display_name, address.ip, from);
 
                 let mut peer = Peer::new(profile, address);
                 peer.public_key = public_key;
@@ -238,6 +242,7 @@ impl DiscoveryService {
             public_key: self.public_key.clone(),
         };
 
+        info!("Sending announcement: {} from {}", self.profile.display_name, self.listen_address.ip);
         self.send_multicast(socket, &message).await
     }
 
@@ -253,6 +258,7 @@ impl DiscoveryService {
                 status: self.profile.status,
             };
 
+            debug!("Sending heartbeat for {}", self.profile.display_name);
             if let Err(e) = self.send_multicast(socket.as_ref(), &message).await {
                 error!("Failed to send heartbeat: {}", e);
             }

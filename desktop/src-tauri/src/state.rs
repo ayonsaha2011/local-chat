@@ -139,9 +139,28 @@ impl AppState {
 }
 
 fn get_local_ip() -> Option<IpAddr> {
-    use std::net::UdpSocket;
+    use local_ip_address::local_ip;
 
-    let socket = UdpSocket::bind("0.0.0.0:0").ok()?;
-    socket.connect("8.8.8.8:80").ok()?;
-    socket.local_addr().ok().map(|addr| addr.ip())
+    // Try to get local IP, filtering out loopback and WSL interfaces
+    if let Ok(ip) = local_ip() {
+        if !ip.is_loopback() {
+            tracing::info!("Detected local IP: {}", ip);
+            return Some(ip);
+        }
+    }
+
+    // Fallback: connect to external address to determine routing IP
+    use std::net::UdpSocket;
+    if let Ok(socket) = UdpSocket::bind("0.0.0.0:0") {
+        if socket.connect("8.8.8.8:80").is_ok() {
+            if let Ok(addr) = socket.local_addr() {
+                let ip = addr.ip();
+                tracing::info!("Fallback: detected local IP via routing: {}", ip);
+                return Some(ip);
+            }
+        }
+    }
+
+    tracing::warn!("Failed to detect local IP, using loopback");
+    Some("127.0.0.1".parse().unwrap())
 }

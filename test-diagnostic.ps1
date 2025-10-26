@@ -13,9 +13,9 @@ foreach ($port in $ports) {
     $result = Get-NetTCPConnection -LocalPort $port -ErrorAction SilentlyContinue
     if ($result) {
         $portsInUse += $port
-        Write-Host "  ✗ Port $port is in use" -ForegroundColor Red
+        Write-Host "  X Port $port is in use" -ForegroundColor Red
     } else {
-        Write-Host "  ✓ Port $port is available" -ForegroundColor Green
+        Write-Host "  OK Port $port is available" -ForegroundColor Green
     }
 }
 
@@ -24,10 +24,10 @@ Write-Host "`n[2/5] Checking network configuration..." -ForegroundColor Yellow
 $ipConfig = Get-NetIPAddress -AddressFamily IPv4 | Where-Object { $_.InterfaceAlias -notlike "*Loopback*" } | Select-Object -First 1
 
 if ($ipConfig) {
-    Write-Host "  ✓ Local IP: $($ipConfig.IPAddress)" -ForegroundColor Green
+    Write-Host "  OK Local IP: $($ipConfig.IPAddress)" -ForegroundColor Green
     Write-Host "    Interface: $($ipConfig.InterfaceAlias)" -ForegroundColor Gray
 } else {
-    Write-Host "  ✗ No network connection found" -ForegroundColor Red
+    Write-Host "  X No network connection found" -ForegroundColor Red
 }
 
 # Test 3: Check firewall status
@@ -36,49 +36,59 @@ $firewallProfiles = Get-NetFirewallProfile
 $anyEnabled = $firewallProfiles | Where-Object { $_.Enabled -eq $true }
 
 if ($anyEnabled) {
-    Write-Host "  ⚠ Windows Firewall is enabled" -ForegroundColor Yellow
+    Write-Host "  ! Windows Firewall is enabled" -ForegroundColor Yellow
     Write-Host "    You may need to add firewall rules" -ForegroundColor Gray
     
     # Check if rules exist
     $rules = Get-NetFirewallRule -DisplayName "LAN Chat*" -ErrorAction SilentlyContinue
     if ($rules) {
-        Write-Host "  ✓ LAN Chat firewall rules found: $($rules.Count)" -ForegroundColor Green
+        Write-Host "  OK LAN Chat firewall rules found: $($rules.Count)" -ForegroundColor Green
     } else {
-        Write-Host "  ✗ No LAN Chat firewall rules found" -ForegroundColor Red
+        Write-Host "  X No LAN Chat firewall rules found" -ForegroundColor Red
         Write-Host "    Run as Administrator to create rules" -ForegroundColor Gray
     }
 } else {
-    Write-Host "  ✓ Windows Firewall is disabled" -ForegroundColor Green
+    Write-Host "  OK Windows Firewall is disabled" -ForegroundColor Green
 }
 
 # Test 4: Check if Node.js and npm are installed
 Write-Host "`n[4/5] Checking development environment..." -ForegroundColor Yellow
 
+$nodeVersion = $null
+$npmVersion = $null
+$cargoVersion = $null
+
 try {
     $nodeVersion = node --version 2>$null
     if ($nodeVersion) {
-        Write-Host "  ✓ Node.js installed: $nodeVersion" -ForegroundColor Green
+        Write-Host "  OK Node.js installed: $nodeVersion" -ForegroundColor Green
+    } else {
+        Write-Host "  X Node.js not found" -ForegroundColor Red
     }
 } catch {
-    Write-Host "  ✗ Node.js not found" -ForegroundColor Red
+    Write-Host "  X Node.js not found" -ForegroundColor Red
 }
 
 try {
     $npmVersion = npm --version 2>$null
     if ($npmVersion) {
-        Write-Host "  ✓ npm installed: $npmVersion" -ForegroundColor Green
+        Write-Host "  OK npm installed: $npmVersion" -ForegroundColor Green
+    } else {
+        Write-Host "  X npm not found" -ForegroundColor Red
     }
 } catch {
-    Write-Host "  ✗ npm not found" -ForegroundColor Red
+    Write-Host "  X npm not found" -ForegroundColor Red
 }
 
 try {
     $cargoVersion = cargo --version 2>$null
     if ($cargoVersion) {
-        Write-Host "  ✓ Rust/Cargo installed: $cargoVersion" -ForegroundColor Green
+        Write-Host "  OK Rust/Cargo installed: $cargoVersion" -ForegroundColor Green
+    } else {
+        Write-Host "  X Rust/Cargo not found" -ForegroundColor Red
     }
 } catch {
-    Write-Host "  ✗ Rust/Cargo not found" -ForegroundColor Red
+    Write-Host "  X Rust/Cargo not found" -ForegroundColor Red
 }
 
 # Test 5: Check if project files exist
@@ -96,9 +106,9 @@ $requiredPaths = @(
 $allExist = $true
 foreach ($path in $requiredPaths) {
     if (Test-Path $path) {
-        Write-Host "  ✓ Found: $(Split-Path $path -Leaf)" -ForegroundColor Green
+        Write-Host "  OK Found: $(Split-Path $path -Leaf)" -ForegroundColor Green
     } else {
-        Write-Host "  ✗ Missing: $path" -ForegroundColor Red
+        Write-Host "  X Missing: $path" -ForegroundColor Red
         $allExist = $false
     }
 }
@@ -109,19 +119,19 @@ Write-Host "SUMMARY" -ForegroundColor Cyan
 Write-Host "========================================`n" -ForegroundColor Cyan
 
 if ($portsInUse.Count -gt 0) {
-    Write-Host "⚠ WARNING: Some ports are in use" -ForegroundColor Yellow
+    Write-Host "! WARNING: Some ports are in use" -ForegroundColor Yellow
     Write-Host "  Close any apps using ports: $($portsInUse -join ', ')" -ForegroundColor Gray
     Write-Host "  Or restart your computer`n" -ForegroundColor Gray
 }
 
-if ($anyEnabled -and -not $rules) {
-    Write-Host "⚠ ACTION REQUIRED: Add firewall rules" -ForegroundColor Yellow
+if ($anyEnabled -and (-not $rules)) {
+    Write-Host "! ACTION REQUIRED: Add firewall rules" -ForegroundColor Yellow
     Write-Host "  Run this script as Administrator, or" -ForegroundColor Gray
     Write-Host "  Temporarily disable Windows Firewall to test`n" -ForegroundColor Gray
 }
 
 if (-not $ipConfig) {
-    Write-Host "✗ ERROR: No network connection" -ForegroundColor Red
+    Write-Host "X ERROR: No network connection" -ForegroundColor Red
     Write-Host "  Connect to WiFi or Ethernet`n" -ForegroundColor Gray
 }
 
