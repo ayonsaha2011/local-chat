@@ -116,24 +116,50 @@ impl AppState {
 
         while let Some(event) = rx.recv().await {
             // Emit event to frontend
-            let event_name = match &event {
-                ChatEvent::PeerDiscovered(_) => "peer-discovered",
-                ChatEvent::PeerConnected(_) => "peer-connected",
-                ChatEvent::PeerDisconnected(_) => "peer-disconnected",
+            match &event {
+                ChatEvent::PeerDiscovered(peer) => {
+                    let _ = window.emit("peer-discovered", peer);
+                }
+                ChatEvent::PeerConnected(peer) => {
+                    let _ = window.emit("peer-connected", peer);
+                }
+                ChatEvent::PeerDisconnected(user_id) => {
+                    let _ = window.emit("peer-disconnected", user_id);
+                }
                 ChatEvent::MessageReceived(msg) => {
                     // Store message
                     let mut messages = self.messages.write().await;
                     messages.push(msg.clone());
-                    "message-received"
+                    let _ = window.emit("message-received", msg);
                 }
-                ChatEvent::MessageSent(_) => "message-sent",
-                ChatEvent::FileTransferRequested { .. } => "file-transfer-requested",
-                ChatEvent::FileTransferProgress { .. } => "file-transfer-progress",
-                ChatEvent::FileTransferCompleted { .. } => "file-transfer-completed",
-                _ => "chat-event",
-            };
-
-            let _ = window.emit(event_name, &event);
+                ChatEvent::MessageSent(msg) => {
+                    let _ = window.emit("message-sent", msg);
+                }
+                ChatEvent::FileTransferRequested { transfer_id, from, file_name, file_size } => {
+                    let _ = window.emit("file-transfer-requested", serde_json::json!({
+                        "transfer_id": transfer_id,
+                        "from": from,
+                        "file_name": file_name,
+                        "file_size": file_size,
+                    }));
+                }
+                ChatEvent::FileTransferProgress { transfer_id, bytes_transferred, total_bytes } => {
+                    let _ = window.emit("file-transfer-progress", serde_json::json!({
+                        "transfer_id": transfer_id,
+                        "bytes_transferred": bytes_transferred,
+                        "total_bytes": total_bytes,
+                    }));
+                }
+                ChatEvent::FileTransferCompleted { transfer_id } => {
+                    let _ = window.emit("file-transfer-completed", serde_json::json!({
+                        "transfer_id": transfer_id,
+                    }));
+                }
+                _ => {
+                    // Fallback for other events
+                    let _ = window.emit("chat-event", &event);
+                }
+            }
         }
     }
 }
