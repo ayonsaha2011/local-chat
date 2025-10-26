@@ -111,6 +111,24 @@ impl DiscoveryService {
             .join_multicast_v4(&multicast_addr, &Ipv4Addr::UNSPECIFIED)
             .map_err(|e| lan_chat_core::ChatError::Network(e.to_string()))?;
 
+        // Set multicast TTL (important for routing)
+        socket
+            .set_multicast_ttl_v4(32)
+            .map_err(|e| lan_chat_core::ChatError::Network(e.to_string()))?;
+
+        // Enable multicast loopback (receive our own messages for testing)
+        socket
+            .set_multicast_loop_v4(true)
+            .map_err(|e| lan_chat_core::ChatError::Network(e.to_string()))?;
+
+        // Set the outgoing interface for multicast - use the local IP
+        if let IpAddr::V4(local_ipv4) = self.listen_address.ip {
+            socket
+                .set_multicast_if_v4(&local_ipv4)
+                .map_err(|e| lan_chat_core::ChatError::Network(format!("Failed to set multicast interface: {}", e)))?;
+            info!("Set multicast interface to: {}", local_ipv4);
+        }
+
         socket
             .set_nonblocking(true)
             .map_err(|e| lan_chat_core::ChatError::Network(e.to_string()))?;
