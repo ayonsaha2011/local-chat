@@ -29,8 +29,11 @@ impl Peer {
     }
 
     pub fn is_online(&self) -> bool {
+        // Mark as online if last seen within 30 seconds (2 missed heartbeats at 15s interval)
+        // Peers are cleaned up after 45 seconds (see PEER_TIMEOUT in discovery service)
+        const ONLINE_THRESHOLD_SECONDS: i64 = 30;
         self.profile.status != UserStatus::Offline
-            && Utc::now().signed_duration_since(self.last_seen).num_seconds() < 30
+            && Utc::now().signed_duration_since(self.last_seen).num_seconds() < ONLINE_THRESHOLD_SECONDS
     }
 }
 

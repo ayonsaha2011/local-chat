@@ -9,6 +9,8 @@ use tracing::{debug, error, info, warn};
 
 const BUFFER_SIZE: usize = 8192;
 const HEARTBEAT_INTERVAL: Duration = Duration::from_secs(15);
+// Peer cleanup timeout: Remove peers after 3 missed heartbeats (45 seconds)
+// Note: Peers are marked offline after 30s (2 missed heartbeats) in peer.rs
 const PEER_TIMEOUT: i64 = 45; // seconds
 
 /// Peer discovery service using UDP multicast
@@ -102,14 +104,10 @@ impl DiscoveryService {
             .bind(&addr.into())
             .map_err(|e| lan_chat_core::ChatError::Network(e.to_string()))?;
 
-        // Join multicast group
+        // Get multicast address
         let multicast_addr: Ipv4Addr = MULTICAST_ADDR_V4
             .parse()
             .map_err(|e| lan_chat_core::ChatError::Network(format!("Invalid multicast address: {}", e)))?;
-
-        socket
-            .join_multicast_v4(&multicast_addr, &Ipv4Addr::UNSPECIFIED)
-            .map_err(|e| lan_chat_core::ChatError::Network(e.to_string()))?;
 
         // Set multicast TTL (important for routing)
         socket
@@ -121,13 +119,23 @@ impl DiscoveryService {
             .set_multicast_loop_v4(true)
             .map_err(|e| lan_chat_core::ChatError::Network(e.to_string()))?;
 
-        // Set the outgoing interface for multicast - use the local IP
-        if let IpAddr::V4(local_ipv4) = self.listen_address.ip {
+        // Set the outgoing interface for multicast BEFORE joining - critical for cross-platform
+        let interface_addr = if let IpAddr::V4(local_ipv4) = self.listen_address.ip {
             socket
                 .set_multicast_if_v4(&local_ipv4)
                 .map_err(|e| lan_chat_core::ChatError::Network(format!("Failed to set multicast interface: {}", e)))?;
             info!("Set multicast interface to: {}", local_ipv4);
-        }
+            local_ipv4
+        } else {
+            Ipv4Addr::UNSPECIFIED
+        };
+
+        // Join multicast group on the specific interface
+        socket
+            .join_multicast_v4(&multicast_addr, &interface_addr)
+            .map_err(|e| lan_chat_core::ChatError::Network(format!("Failed to join multicast group: {}", e)))?;
+
+        info!("Joined multicast group {} on interface {}", multicast_addr, interface_addr);
 
         socket
             .set_nonblocking(true)
@@ -142,10 +150,24 @@ impl DiscoveryService {
 
         info!("Discovery receiver loop started, listening on multicast {}:{}", MULTICAST_ADDR_V4, DISCOVERY_PORT);
 
-        loop {
-            let std_socket: std::net::UdpSocket = socket.try_clone().unwrap().into();
-            let tokio_socket = tokio::net::UdpSocket::from_std(std_socket).unwrap();
+        // Convert socket once outside the loop for better performance
+        let std_socket: std::net::UdpSocket = match socket.try_clone() {
+            Ok(s) => s.into(),
+            Err(e) => {
+                error!("Failed to clone socket for receive loop: {}", e);
+                return;
+            }
+        };
 
+        let tokio_socket = match tokio::net::UdpSocket::from_std(std_socket) {
+            Ok(s) => s,
+            Err(e) => {
+                error!("Failed to convert socket to tokio socket: {}", e);
+                return;
+            }
+        };
+
+        loop {
             match tokio_socket.recv_from(&mut buffer).await {
                 Ok((len, addr)) => {
                     debug!("Received {} bytes from {}", len, addr);

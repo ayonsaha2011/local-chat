@@ -55,8 +55,16 @@ impl AppState {
         tracing::info!("User profile: {} ({})", profile.display_name, profile.user_id);
 
         // Get local IP
-        let local_ip = get_local_ip().unwrap_or_else(|| "127.0.0.1".parse().unwrap());
-        tracing::info!("Local IP: {}", local_ip);
+        let local_ip = match get_local_ip() {
+            Some(ip) => {
+                tracing::info!("✅ Local IP: {}", ip);
+                ip
+            }
+            None => {
+                tracing::error!("❌ Failed to detect local IP - services may not work correctly");
+                return Err(anyhow::anyhow!("Failed to detect local network IP address. Please check your network connection."));
+            }
+        };
 
         // Start discovery service
         tracing::info!("Starting peer discovery service...");
@@ -181,12 +189,33 @@ fn get_local_ip() -> Option<IpAddr> {
         if socket.connect("8.8.8.8:80").is_ok() {
             if let Ok(addr) = socket.local_addr() {
                 let ip = addr.ip();
-                tracing::info!("Fallback: detected local IP via routing: {}", ip);
-                return Some(ip);
+                if !ip.is_loopback() {
+                    tracing::info!("Fallback: detected local IP via routing: {}", ip);
+                    return Some(ip);
+                }
             }
         }
     }
 
-    tracing::warn!("Failed to detect local IP, using loopback");
-    Some("127.0.0.1".parse().unwrap())
+    // Try alternative external addresses
+    let fallback_addresses = ["1.1.1.1:80", "208.67.222.222:80"];
+    for addr in fallback_addresses.iter() {
+        if let Ok(socket) = UdpSocket::bind("0.0.0.0:0") {
+            if socket.connect(addr).is_ok() {
+                if let Ok(local_addr) = socket.local_addr() {
+                    let ip = local_addr.ip();
+                    if !ip.is_loopback() {
+                        tracing::info!("Fallback: detected local IP via routing ({}): {}", addr, ip);
+                        return Some(ip);
+                    }
+                }
+            }
+        }
+    }
+
+    // CRITICAL: Do NOT fall back to loopback - it won't work for cross-device communication
+    tracing::error!("❌ CRITICAL: Failed to detect local network IP address!");
+    tracing::error!("This means the device cannot be discovered by other devices on the network.");
+    tracing::error!("Please check your network connection and firewall settings.");
+    None
 }
