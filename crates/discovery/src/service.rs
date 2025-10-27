@@ -60,6 +60,17 @@ impl DiscoveryService {
             })
         };
 
+        // Give receiver time to start listening before sending announcements
+        // This prevents missing announcements due to race conditions
+        tokio::time::sleep(Duration::from_millis(100)).await;
+
+        // Send initial announcement
+        self.announce(socket.as_ref()).await?;
+
+        // Send a discovery request to trigger responses from existing peers
+        // This helps when joining a network where peers are already active
+        self.send_discovery_request(socket.as_ref()).await?;
+
         // Spawn heartbeat task
         let heartbeat_handle = {
             let service = Arc::clone(&self);
@@ -76,9 +87,6 @@ impl DiscoveryService {
                 service.cleanup_loop().await;
             })
         };
-
-        // Send initial announcement
-        self.announce(socket.as_ref()).await?;
 
         // Wait for tasks
         tokio::select! {
@@ -210,8 +218,20 @@ impl DiscoveryService {
             }
 
             DiscoveryMessage::DiscoveryRequest => {
-                debug!("Discovery request from {}", from);
-                // Respond with our info (implemented via heartbeat)
+                info!("📡 Discovery request from {}, sending our info", from);
+                // Respond immediately with our full profile
+                // This is critical for fast peer discovery
+                let response = DiscoveryMessage::DiscoveryResponse {
+                    profile: self.profile.clone(),
+                    address: self.listen_address.clone(),
+                    public_key: self.public_key.clone(),
+                };
+
+                // Send response back via multicast
+                // We use multicast instead of unicast so all devices benefit
+                if let Err(e) = self.send_multicast_from_handler(&response).await {
+                    warn!("Failed to send discovery response: {}", e);
+                }
             }
 
             DiscoveryMessage::DiscoveryResponse {
@@ -222,6 +242,8 @@ impl DiscoveryService {
                 if profile.user_id == self.profile.user_id {
                     return Ok(());
                 }
+
+                info!("✅ Peer discovered via response: {} at {} (from {})", profile.display_name, address.ip, from);
 
                 let mut peer = Peer::new(profile, address);
                 peer.public_key = public_key;
@@ -318,6 +340,47 @@ impl DiscoveryService {
             .map_err(|e| lan_chat_core::ChatError::Network(e.to_string()))?;
 
         Ok(())
+    }
+
+    /// Send a message to the multicast group from a message handler
+    /// This creates a temporary socket for sending
+    async fn send_multicast_from_handler(
+        &self,
+        message: &DiscoveryMessage,
+    ) -> lan_chat_core::Result<()> {
+        let data = message
+            .to_bytes()
+            .map_err(|e| lan_chat_core::ChatError::Protocol(e.to_string()))?;
+
+        let multicast_addr: Ipv4Addr = MULTICAST_ADDR_V4
+            .parse()
+            .map_err(|e| lan_chat_core::ChatError::Network(format!("Invalid multicast address: {}", e)))?;
+
+        let dest = SocketAddr::new(IpAddr::V4(multicast_addr), DISCOVERY_PORT);
+
+        // Create a temporary socket for sending
+        let socket = Socket::new(Domain::IPV4, Type::DGRAM, Some(Protocol::UDP))
+            .map_err(|e| lan_chat_core::ChatError::Network(e.to_string()))?;
+
+        // Set the multicast interface to ensure packet goes out the correct interface
+        if let IpAddr::V4(local_ipv4) = self.listen_address.ip {
+            socket
+                .set_multicast_if_v4(&local_ipv4)
+                .map_err(|e| lan_chat_core::ChatError::Network(format!("Failed to set multicast interface: {}", e)))?;
+        }
+
+        socket
+            .send_to(&data, &dest.into())
+            .map_err(|e| lan_chat_core::ChatError::Network(e.to_string()))?;
+
+        Ok(())
+    }
+
+    /// Send a discovery request to find existing peers
+    async fn send_discovery_request(&self, socket: &Socket) -> lan_chat_core::Result<()> {
+        let message = DiscoveryMessage::DiscoveryRequest;
+        info!("Sending discovery request to find existing peers");
+        self.send_multicast(socket, &message).await
     }
 
     /// Send goodbye message before shutting down
