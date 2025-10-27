@@ -103,8 +103,16 @@ impl DiscoveryService {
         let socket = Socket::new(Domain::IPV4, Type::DGRAM, Some(Protocol::UDP))
             .map_err(|e| lan_chat_core::ChatError::Network(e.to_string()))?;
 
+        // SO_REUSEADDR allows multiple sockets to bind to the same address
         socket
             .set_reuse_address(true)
+            .map_err(|e| lan_chat_core::ChatError::Network(e.to_string()))?;
+
+        // SO_REUSEPORT is CRITICAL for macOS multicast sockets
+        // Without this, macOS may not receive multicast packets properly
+        #[cfg(not(windows))]
+        socket
+            .set_reuse_port(true)
             .map_err(|e| lan_chat_core::ChatError::Network(e.to_string()))?;
 
         let addr = SocketAddr::new(IpAddr::V4(Ipv4Addr::UNSPECIFIED), DISCOVERY_PORT);
@@ -132,18 +140,20 @@ impl DiscoveryService {
             socket
                 .set_multicast_if_v4(&local_ipv4)
                 .map_err(|e| lan_chat_core::ChatError::Network(format!("Failed to set multicast interface: {}", e)))?;
-            info!("Set multicast interface to: {}", local_ipv4);
+            info!("✓ Set multicast send interface to: {}", local_ipv4);
             local_ipv4
         } else {
+            warn!("⚠ Using UNSPECIFIED interface for multicast - may not work correctly!");
             Ipv4Addr::UNSPECIFIED
         };
 
         // Join multicast group on the specific interface
+        // This is CRITICAL - we must join on the specific interface, not UNSPECIFIED
         socket
             .join_multicast_v4(&multicast_addr, &interface_addr)
-            .map_err(|e| lan_chat_core::ChatError::Network(format!("Failed to join multicast group: {}", e)))?;
+            .map_err(|e| lan_chat_core::ChatError::Network(format!("Failed to join multicast group {} on interface {}: {}", multicast_addr, interface_addr, e)))?;
 
-        info!("Joined multicast group {} on interface {}", multicast_addr, interface_addr);
+        info!("✓ Joined multicast group {} on interface {} for RECEIVING", multicast_addr, interface_addr);
 
         socket
             .set_nonblocking(true)
