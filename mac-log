@@ -1,0 +1,17 @@
+2025-10-27T02:59:04.082927Z  INFO lan_chat_desktop::state: Starting chat services...
+2025-10-27T02:59:08.585854Z  INFO lan_chat_desktop::state: User profile: User (39d628d3-d780-417a-acdc-5f32a7be471f)
+2025-10-27T02:59:08.585928Z  INFO lan_chat_desktop::state: Detected local IP: 192.168.1.103
+2025-10-27T02:59:08.585936Z  INFO lan_chat_desktop::state: ✅ Local IP: 192.168.1.103
+2025-10-27T02:59:08.585942Z  INFO lan_chat_desktop::state: Starting peer discovery service...
+2025-10-27T02:59:08.585978Z  INFO lan_chat_desktop::state: Starting messaging server on port 37843...
+2025-10-27T02:59:08.586031Z  INFO lan_chat_desktop::state: Starting file transfer service (downloads: "/Users/ayonsaha/Downloads")...
+2025-10-27T02:59:08.586093Z  INFO lan_chat_discovery::service: Starting discovery service on port 37842
+2025-10-27T02:59:08.586120Z  INFO lan_chat_desktop::state: All services started successfully!
+2025-10-27T02:59:08.586184Z  INFO lan_chat_discovery::service: Set multicast interface to: 192.168.1.103
+2025-10-27T02:59:08.586198Z  INFO lan_chat_transfer::service: Transfer service listening on 0.0.0.0:37844
+2025-10-27T02:59:08.586200Z  INFO lan_chat_protocol::server: Messaging server listening on 0.0.0.0:37843
+2025-10-27T02:59:08.586216Z  INFO lan_chat_discovery::service: Joined multicast group 239.255.42.99 on interface 192.168.1.103
+2025-10-27T02:59:08.586265Z  INFO lan_chat_discovery::service: Discovery receiver loop started, listening on multicast 239.255.42.99:37842
+2025-10-27T02:59:08.688641Z  INFO lan_chat_discovery::service: Sending announcement: User from 192.168.1.103
+2025-10-27T02:59:08.688888Z  INFO lan_chat_discovery::service: Sending discovery request to find existing peers
+2025-10-27T02:59:08.689204Z  INFO lan_chat_discovery::service: 📡 Discovery request from 192.168.1.103:37842, sending our info
