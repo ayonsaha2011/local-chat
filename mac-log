@@ -1,17 +1,34 @@
-2025-10-27T02:59:04.082927Z  INFO lan_chat_desktop::state: Starting chat services...
-2025-10-27T02:59:08.585854Z  INFO lan_chat_desktop::state: User profile: User (39d628d3-d780-417a-acdc-5f32a7be471f)
-2025-10-27T02:59:08.585928Z  INFO lan_chat_desktop::state: Detected local IP: 192.168.1.103
-2025-10-27T02:59:08.585936Z  INFO lan_chat_desktop::state: ✅ Local IP: 192.168.1.103
-2025-10-27T02:59:08.585942Z  INFO lan_chat_desktop::state: Starting peer discovery service...
-2025-10-27T02:59:08.585978Z  INFO lan_chat_desktop::state: Starting messaging server on port 37843...
-2025-10-27T02:59:08.586031Z  INFO lan_chat_desktop::state: Starting file transfer service (downloads: "/Users/ayonsaha/Downloads")...
-2025-10-27T02:59:08.586093Z  INFO lan_chat_discovery::service: Starting discovery service on port 37842
-2025-10-27T02:59:08.586120Z  INFO lan_chat_desktop::state: All services started successfully!
-2025-10-27T02:59:08.586184Z  INFO lan_chat_discovery::service: Set multicast interface to: 192.168.1.103
-2025-10-27T02:59:08.586198Z  INFO lan_chat_transfer::service: Transfer service listening on 0.0.0.0:37844
-2025-10-27T02:59:08.586200Z  INFO lan_chat_protocol::server: Messaging server listening on 0.0.0.0:37843
-2025-10-27T02:59:08.586216Z  INFO lan_chat_discovery::service: Joined multicast group 239.255.42.99 on interface 192.168.1.103
-2025-10-27T02:59:08.586265Z  INFO lan_chat_discovery::service: Discovery receiver loop started, listening on multicast 239.255.42.99:37842
-2025-10-27T02:59:08.688641Z  INFO lan_chat_discovery::service: Sending announcement: User from 192.168.1.103
-2025-10-27T02:59:08.688888Z  INFO lan_chat_discovery::service: Sending discovery request to find existing peers
-2025-10-27T02:59:08.689204Z  INFO lan_chat_discovery::service: 📡 Discovery request from 192.168.1.103:37842, sending our info
+npm run tauri dev
+
+> lan-chat-desktop@0.1.0 tauri
+> tauri dev
+
+     Running BeforeDevCommand (`npm run dev`)
+
+> lan-chat-desktop@0.1.0 dev
+> vite
+
+
+  VITE v7.1.12  ready in 113 ms
+
+  ➜  Local:   http://localhost:1420/
+  ➜  Network: use --host to expose
+        Info Watching /Users/ayonsaha/Workspace/MyWorks/local-chat/desktop/src-tauri for changes...
+        Info Watching /Users/ayonsaha/Workspace/MyWorks/local-chat/crates/core for changes...
+        Info Watching /Users/ayonsaha/Workspace/MyWorks/local-chat/crates/protocol for changes...
+        Info Watching /Users/ayonsaha/Workspace/MyWorks/local-chat/crates/crypto for changes...
+        Info Watching /Users/ayonsaha/Workspace/MyWorks/local-chat/crates/discovery for changes...
+        Info Watching /Users/ayonsaha/Workspace/MyWorks/local-chat/crates/transfer for changes...
+        Info Watching /Users/ayonsaha/Workspace/MyWorks/local-chat/desktop/src-tauri for changes...
+   Compiling lan-chat-discovery v0.1.0 (/Users/ayonsaha/Workspace/MyWorks/local-chat/crates/discovery)
+error[E0599]: no method named `set_reuse_port` found for struct `Socket` in the current scope
+   --> crates/discovery/src/service.rs:115:14
+    |
+114 | /         socket
+115 | |             .set_reuse_port(true)
+    | |             -^^^^^^^^^^^^^^ method not found in `Socket`
+    | |_____________|
+    |
+
+For more information about this error, try `rustc --explain E0599`.
+error: could not compile `lan-chat-discovery` (lib) due to 1 previous error
