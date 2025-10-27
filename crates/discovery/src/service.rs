@@ -108,12 +108,29 @@ impl DiscoveryService {
             .set_reuse_address(true)
             .map_err(|e| lan_chat_core::ChatError::Network(e.to_string()))?;
 
-        // SO_REUSEPORT is CRITICAL for macOS multicast sockets
+        // SO_REUSEPORT is CRITICAL for macOS/BSD multicast sockets
         // Without this, macOS may not receive multicast packets properly
-        #[cfg(not(windows))]
-        socket
-            .set_reuse_port(true)
-            .map_err(|e| lan_chat_core::ChatError::Network(e.to_string()))?;
+        // On Unix-like systems, we need to set SO_REUSEPORT before binding
+        #[cfg(all(unix, not(target_os = "solaris"), not(target_os = "illumos")))]
+        {
+            use std::os::fd::AsRawFd;
+            let optval: libc::c_int = 1;
+            let ret = unsafe {
+                libc::setsockopt(
+                    socket.as_raw_fd(),
+                    libc::SOL_SOCKET,
+                    libc::SO_REUSEPORT,
+                    &optval as *const _ as *const libc::c_void,
+                    std::mem::size_of_val(&optval) as libc::socklen_t,
+                )
+            };
+            if ret != 0 {
+                warn!("Failed to set SO_REUSEPORT (error {}), multicast may not work on macOS",
+                      std::io::Error::last_os_error());
+            } else {
+                info!("✓ Set SO_REUSEPORT for macOS multicast compatibility");
+            }
+        }
 
         let addr = SocketAddr::new(IpAddr::V4(Ipv4Addr::UNSPECIFIED), DISCOVERY_PORT);
         socket
